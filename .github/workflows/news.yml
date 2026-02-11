@@ -1,4 +1,6 @@
 name: Penguin News Bot
+- name: Install dependencies
+  run: pip install -r requirements.txt
 
 on:
   schedule:
