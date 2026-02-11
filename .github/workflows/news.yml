@@ -1,11 +1,9 @@
 name: Penguin News Bot
-- name: Install dependencies
-  run: pip install -r requirements.txt
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: "0 */6 * * *"   # 6時間ごと
+  workflow_dispatch:        # 手動実行も可能
 
 permissions:
   contents: write
@@ -15,15 +13,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: "3.11"
 
       - name: Install dependencies
-        run: |
-          pip install feedparser requests beautifulsoup4
+        run: pip install -r requirements.txt
 
       - name: Run bot
         env:
@@ -32,8 +31,8 @@ jobs:
 
       - name: Commit history
         run: |
-          git config user.name "bot"
-          git config user.email "bot@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add history.json
           git commit -m "update history" || echo "No changes"
           git push
