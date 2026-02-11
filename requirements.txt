@@ -1,5 +1,6 @@
 feedparser
 requests
 beautifulsoup4
-tldextract
+readability-lxml
+langdetect
 deep-translator
