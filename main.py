@@ -1,156 +1,108 @@
 import feedparser
 import requests
-import json
-import os
 from bs4 import BeautifulSoup
-from datetime import datetime
-from email.utils import parsedate_to_datetime
+from readability import Document
+from langdetect import detect
+from deep_translator import GoogleTranslator
 
-DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-HISTORY_FILE = "history.json"
-MAX_POSTS_PER_RUN = 5
+DISCORD_WEBHOOK_URL = "あなたのWebhookURL"
 
-PENGUIN_KEYWORDS = [
-    "ペンギン",
-    "penguin",
-    "emperor penguin",
-    "adelie",
-    "gentoo",
-    "chinstrap"
-]
+KEYWORDS = ["ペンギン", "penguin"]
 
-HEADERS = {"User-Agent": "Mozilla/5.0"}
-
-
-# =========================
-# 共通処理
-# =========================
-
-def load_history():
-    try:
-        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
-
-
-def save_history(data):
-    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
+# -----------------------------
+# 本文取得
+# -----------------------------
 def fetch_article_text(url):
     try:
-        r = requests.get(url, headers=HEADERS, timeout=15)
-        r.encoding = r.apparent_encoding
-        soup = BeautifulSoup(r.text, "html.parser")
-        paragraphs = soup.find_all("p")
-        text = " ".join(p.get_text(strip=True) for p in paragraphs)
-        return text[:5000]
+        res = requests.get(url, timeout=10)
+        doc = Document(res.text)
+        soup = BeautifulSoup(doc.summary(), "html.parser")
+        text = soup.get_text(separator="\n")
+        return text.strip()
     except:
         return ""
 
+# -----------------------------
+# 翻訳（英語→日本語）
+# -----------------------------
+def translate_to_japanese(text):
+    try:
+        return GoogleTranslator(source="auto", target="ja").translate(text)
+    except:
+        return text
 
-def contains_penguin(text):
-    text_lower = text.lower()
-    return any(k.lower() in text_lower for k in PENGUIN_KEYWORDS)
+# -----------------------------
+# 簡易要約（前400文字）
+# -----------------------------
+def summarize_text(text, max_length=400):
+    text = text.replace("\n", " ")
+    return text[:max_length] + "..." if len(text) > max_length else text
 
+# -----------------------------
+# 記事処理
+# -----------------------------
+def process_article(title, url):
+    if not any(k.lower() in title.lower() for k in KEYWORDS):
+        return None
 
-def summarize(text):
-    text = text.replace("\n", "")
-    sentences = text.split("。")
-    if len(sentences) > 3:
-        return "。".join(sentences[:3]) + "。"
-    return text[:300]
+    text = fetch_article_text(url)
+    if not text:
+        return None
 
+    try:
+        lang = detect(text)
+    except:
+        lang = "unknown"
 
-def post_to_discord(message):
-    if len(message) > 1900:
-        message = message[:1900]
-    requests.post(DISCORD_WEBHOOK, json={"content": message})
+    if lang == "en":
+        text = translate_to_japanese(text)
 
+    summary = summarize_text(text)
 
-# =========================
-# メイン処理
-# =========================
+    return {
+        "title": title,
+        "url": url,
+        "summary": summary
+    }
 
-def main():
-    history = load_history()
-    posted_urls = {h["url"] for h in history}
+# -----------------------------
+# Discord投稿
+# -----------------------------
+def post_to_discord(article):
+    message = f"""🐧 ペンギンニュース
 
-    with open("sources.json", "r", encoding="utf-8") as f:
-        sources = json.load(f)
+📰 {article['title']}
 
-    candidate_articles = []
-
-    # ① 全RSS巡回
-    for source in sources:
-        feed = feedparser.parse(source["rss"])
-
-        for entry in feed.entries:
-            url = entry.link
-
-            if url in posted_urls:
-                continue
-
-            published = None
-            if hasattr(entry, "published"):
-                try:
-                    published = parsedate_to_datetime(entry.published)
-                except:
-                    published = datetime.utcnow()
-            else:
-                published = datetime.utcnow()
-
-            candidate_articles.append({
-                "source": source["name"],
-                "title": entry.title,
-                "url": url,
-                "published": published
-            })
-
-    # ② 古い順に並び替え（取りこぼし防止）
-    candidate_articles.sort(key=lambda x: x["published"])
-
-    posts_made = 0
-
-    # ③ 最大5件投稿
-    for article in candidate_articles:
-        if posts_made >= MAX_POSTS_PER_RUN:
-            break
-
-        article_text = fetch_article_text(article["url"])
-        if not article_text:
-            continue
-
-        if not contains_penguin(article_text):
-            continue
-
-        summary = summarize(article_text)
-
-        message = f"""📰【{article['source']}】
-
-■ タイトル
-{article['title']}
-
-■ 要約
-{summary}
+📝 要約：
+{article['summary']}
 
 🔗 {article['url']}
 """
+    requests.post(DISCORD_WEBHOOK_URL, json={"content": message})
 
-        post_to_discord(message)
+# -----------------------------
+# RSS取得
+# -----------------------------
+def run():
+    feeds = [
+        "https://www3.nhk.or.jp/rss/news/cat0.xml",
+        "https://news.yahoo.co.jp/rss/topics/top-picks.xml"
+    ]
 
-        history.append({
-            "title": article["title"],
-            "url": article["url"],
-            "date": datetime.utcnow().isoformat()
-        })
+    posted = 0
+    max_posts = 5
 
-        posts_made += 1
+    for feed_url in feeds:
+        feed = feedparser.parse(feed_url)
+        for entry in feed.entries:
+            if posted >= max_posts:
+                return
 
-    save_history(history)
+            article = process_article(entry.title, entry.link)
+            if article:
+                post_to_discord(article)
+                posted += 1
 
 
 if __name__ == "__main__":
-    main()
+    run()
