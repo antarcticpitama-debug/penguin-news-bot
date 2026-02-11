@@ -4,59 +4,62 @@ import json
 import os
 from bs4 import BeautifulSoup
 from readability import Document
+from datetime import datetime
 from langdetect import detect
 from deep_translator import GoogleTranslator
-from datetime import datetime
 
-DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
 MAX_POSTS = 5
 HISTORY_FILE = "history.json"
 
 KEYWORDS = ["penguin", "ペンギン"]
 
-# -------------------------
-# 共通処理
-# -------------------------
+# ----------------------------
+# Utility
+# ----------------------------
 
-def load_json(file):
+def load_history():
     try:
-        with open(file, "r", encoding="utf-8") as f:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
         return []
 
-def save_json(file, data):
-    with open(file, "w", encoding="utf-8") as f:
+def save_history(data):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def contains_penguin(text):
+    if not text:
+        return False
     text = text.lower()
     return any(k.lower() in text for k in KEYWORDS)
 
-# -------------------------
-# 本文取得
-# -------------------------
+# ----------------------------
+# Article fetch
+# ----------------------------
 
 def fetch_article_text(url):
     try:
-        r = requests.get(url, timeout=10, headers={
-            "User-Agent": "Mozilla/5.0"
-        })
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, timeout=10, headers=headers)
         doc = Document(r.text)
         html = doc.summary()
         soup = BeautifulSoup(html, "html.parser")
         text = soup.get_text(separator=" ")
-        return text.strip()[:2000]
-    except:
+        return text.strip()[:3000]
+    except Exception as e:
+        print("Fetch error:", e)
         return ""
 
-# -------------------------
-# 翻訳
-# -------------------------
+# ----------------------------
+# Translation
+# ----------------------------
 
 def translate_to_japanese(text):
     try:
+        if not text:
+            return ""
         lang = detect(text)
         if lang != "ja":
             return GoogleTranslator(source="auto", target="ja").translate(text)
@@ -64,18 +67,19 @@ def translate_to_japanese(text):
     except:
         return text
 
-# -------------------------
-# 要約（無料簡易）
-# -------------------------
+# ----------------------------
+# Simple summary
+# ----------------------------
 
 def summarize_text(text):
+    if not text:
+        return ""
     sentences = text.split("。")
-    summary = "。".join(sentences[:3])
-    return summary.strip() + "。"
+    return "。".join(sentences[:3]).strip() + "。"
 
-# -------------------------
-# Discord投稿
-# -------------------------
+# ----------------------------
+# Discord post
+# ----------------------------
 
 def post_to_discord(title, summary, url):
     message = f"""📰 **ペンギンニュース**
@@ -88,19 +92,22 @@ def post_to_discord(title, summary, url):
 
 🔗 {url}
 """
-
     if len(message) > 1900:
         message = message[:1900]
 
     requests.post(DISCORD_WEBHOOK, json={"content": message})
 
-# -------------------------
-# メイン処理
-# -------------------------
+# ----------------------------
+# Main
+# ----------------------------
 
 def main():
-    history = load_json(HISTORY_FILE)
-    posted_urls = [h["url"] for h in history]
+    if not DISCORD_WEBHOOK:
+        print("Webhook not set")
+        return
+
+    history = load_history()
+    posted_urls = {item["url"] for item in history}
 
     with open("sources.json", "r", encoding="utf-8") as f:
         sources = json.load(f)
@@ -108,35 +115,41 @@ def main():
     post_count = 0
 
     for source in sources:
+        print("Checking:", source["name"])
         feed = feedparser.parse(source["url"])
 
         for entry in feed.entries:
-            if entry.link in posted_urls:
+            link = entry.get("link")
+            title = entry.get("title", "")
+
+            if not link or link in posted_urls:
                 continue
 
-            title = entry.title
-            if not contains_penguin(title):
+            # タイトル or 概要にペンギンが含まれるか
+            summary_text = entry.get("summary", "")
+            if not contains_penguin(title + summary_text):
                 continue
 
-            text = fetch_article_text(entry.link)
-            if not text:
+            article_text = fetch_article_text(link)
+            if not article_text:
                 continue
 
-            text = translate_to_japanese(text)
-            summary = summarize_text(text)
+            translated = translate_to_japanese(article_text)
+            summary = summarize_text(translated)
 
-            post_to_discord(title, summary, entry.link)
+            post_to_discord(title, summary, link)
 
             history.append({
                 "title": title,
-                "url": entry.link,
+                "url": link,
                 "date": datetime.utcnow().isoformat()
             })
 
-            save_json(HISTORY_FILE, history)
+            save_history(history)
 
             post_count += 1
             if post_count >= MAX_POSTS:
+                print("Max posts reached")
                 return
 
 if __name__ == "__main__":
