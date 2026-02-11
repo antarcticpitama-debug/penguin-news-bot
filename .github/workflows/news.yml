@@ -2,7 +2,8 @@ name: Penguin News Bot
 
 on:
   schedule:
-    - cron: "0 */6 * * *"  # 6時間ごと実行
+  - cron: "0 */6 * * *"   # 通常
+  - cron: "0 12 * * 0"    # 日曜12時UTC（週まとめ）
   workflow_dispatch:
 
 jobs:
