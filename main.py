@@ -102,4 +102,42 @@ def main():
     history = load_json(HISTORY_FILE)
     posted_urls = [h["url"] for h in history]
 
-    with open("sources.json", "r", encod
+    with open("sources.json", "r", encoding="utf-8") as f:
+        sources = json.load(f)
+
+    post_count = 0
+
+    for source in sources:
+        feed = feedparser.parse(source["url"])
+
+        for entry in feed.entries:
+            if entry.link in posted_urls:
+                continue
+
+            title = entry.title
+            if not contains_penguin(title):
+                continue
+
+            text = fetch_article_text(entry.link)
+            if not text:
+                continue
+
+            text = translate_to_japanese(text)
+            summary = summarize_text(text)
+
+            post_to_discord(title, summary, entry.link)
+
+            history.append({
+                "title": title,
+                "url": entry.link,
+                "date": datetime.utcnow().isoformat()
+            })
+
+            save_json(HISTORY_FILE, history)
+
+            post_count += 1
+            if post_count >= MAX_POSTS:
+                return
+
+if __name__ == "__main__":
+    main()
