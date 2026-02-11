@@ -4,28 +4,18 @@ import json
 import os
 import tldextract
 from bs4 import BeautifulSoup
+from deep_translator import GoogleTranslator
+from datetime import datetime, timedelta
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
 
 RSS_FEEDS = [
-    "https://news.google.com/rss/search?q=penguin&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=penguin+conservation&hl=en-US&gl=US&ceid=US:en",
-    "https://news.google.com/rss/search?q=emperor+penguin&hl=en-US&gl=US&ceid=US:en"
+    "https://news.google.com/rss/search?q=penguin&hl=en-US&gl=US&ceid=US:en"
 ]
 
-KEYWORDS = ["penguin", "antarctica", "emperor", "conservation"]
+HISTORY_FILE = "history.json"
 
-BLACKLIST = ["youtube.com", "pinterest", "facebook", "tiktok"]
-
-TRUSTED_DOMAINS = {
-    "bbc.com": 3,
-    "reuters.com": 4,
-    "apnews.com": 4,
-    "nature.com": 5,
-    "nationalgeographic.com": 4
-}
-
-# --- load history ---
+# ===== ユーティリティ =====
 def load_json(file):
     try:
         with open(file, "r") as f:
@@ -33,24 +23,13 @@ def load_json(file):
     except:
         return []
 
-posted_urls = load_json("posted.json")
-posted_titles = load_json("posted_titles.json")
-
 def save_json(file, data):
     with open(file, "w") as f:
         json.dump(data, f)
 
-def is_relevant(title):
-    text = title.lower()
-    return any(k in text for k in KEYWORDS)
-
-def is_blacklisted(url):
-    return any(b in url for b in BLACKLIST)
-
-def get_domain_score(url):
+def get_domain_name(url):
     ext = tldextract.extract(url)
-    domain = f"{ext.domain}.{ext.suffix}"
-    return TRUSTED_DOMAINS.get(domain, 1)
+    return f"{ext.domain}.{ext.suffix}"
 
 def fetch_article_text(url):
     try:
@@ -58,51 +37,98 @@ def fetch_article_text(url):
         soup = BeautifulSoup(r.text, "html.parser")
         paragraphs = soup.find_all("p")
         text = " ".join(p.get_text() for p in paragraphs[:5])
-        return text[:500]
+        return text[:1000]
     except:
         return ""
 
-candidates = []
+def translate_to_japanese(text):
+    try:
+        return GoogleTranslator(source="auto", target="ja").translate(text)
+    except:
+        return text
 
-# --- collect feeds ---
-for feed_url in RSS_FEEDS:
-    feed = feedparser.parse(feed_url)
+def summarize_text(text):
+    sentences = text.split("。")
+    summary = "。".join(sentences[:3])
+    return summary + "。"
+
+# ===== 週まとめ判定 =====
+def is_weekly_mode():
+    # 日曜のみまとめ投稿
+    return datetime.utcnow().weekday() == 6
+
+# ===== 通常投稿処理 =====
+def normal_mode():
+    history = load_json(HISTORY_FILE)
+
+    feed = feedparser.parse(RSS_FEEDS[0])
+
     for entry in feed.entries:
-        if entry.link in posted_urls:
-            continue
-        if not is_relevant(entry.title):
-            continue
-        if is_blacklisted(entry.link):
+        if any(h["url"] == entry.link for h in history):
             continue
 
-        score = get_domain_score(entry.link)
+        text = fetch_article_text(entry.link)
+        translated = translate_to_japanese(text)
+        summary = summarize_text(translated)
 
-        candidates.append({
+        domain = get_domain_name(entry.link)
+
+        message = f"""📰 【ペンギンニュース】
+
+■ タイトル
+{entry.title}
+
+■ ソース
+{domain}
+
+■ 要約
+{summary}
+
+🔗 {entry.link}
+"""
+
+        if len(message) > 1900:
+            message = message[:1900]
+
+        requests.post(DISCORD_WEBHOOK, json={"content": message})
+
+        history.append({
             "title": entry.title,
             "url": entry.link,
-            "score": score
+            "summary": summary,
+            "date": datetime.utcnow().isoformat()
         })
 
-# --- sort by trust score ---
-candidates = sorted(candidates, key=lambda x: x["score"], reverse=True)
+        save_json(HISTORY_FILE, history)
+        break
 
-if candidates:
-    article = candidates[0]
-    text = fetch_article_text(article["url"])
+# ===== 週まとめ投稿 =====
+def weekly_mode():
+    history = load_json(HISTORY_FILE)
 
-    message = f"""📰 **Penguin News Update**
+    one_week_ago = datetime.utcnow() - timedelta(days=7)
 
-**{article['title']}**
+    weekly_items = [
+        h for h in history
+        if datetime.fromisoformat(h["date"]) > one_week_ago
+    ]
 
-{text}...
+    if not weekly_items:
+        return
 
-🔗 {article['url']}
-"""
+    message = "🗓 【ペンギンニュース週間まとめ】\n\n"
+
+    for i, item in enumerate(weekly_items[:5], 1):
+        message += f"{i}. {item['title']}\n"
+        message += f"{item['summary']}\n\n"
+
+    if len(message) > 1900:
+        message = message[:1900]
 
     requests.post(DISCORD_WEBHOOK, json={"content": message})
 
-    posted_urls.append(article["url"])
-    posted_titles.append(article["title"])
-
-    save_json("posted.json", posted_urls)
-    save_json("posted_titles.json", posted_titles)
+# ===== 実行 =====
+if is_weekly_mode():
+    weekly_mode()
+else:
+    normal_mode()
