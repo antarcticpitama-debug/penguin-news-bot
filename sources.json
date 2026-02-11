@@ -1,0 +1,136 @@
+{
+  "sources": [
+
+    /* ========= 国内ニュース ========= */
+
+    {
+      "name": "NHK",
+      "type": "rss",
+      "url": "https://www3.nhk.or.jp/rss/news/cat0.xml"
+    },
+    {
+      "name": "朝日新聞",
+      "type": "rss",
+      "url": "https://www.asahi.com/rss/asahi/newsheadlines.rdf"
+    },
+    {
+      "name": "毎日新聞",
+      "type": "rss",
+      "url": "https://mainichi.jp/rss/etc/mainichi-flash.rss"
+    },
+
+    /* ========= 海外ニュース ========= */
+
+    {
+      "name": "BBC World",
+      "type": "rss",
+      "url": "http://feeds.bbci.co.uk/news/world/rss.xml"
+    },
+    {
+      "name": "Reuters Environment",
+      "type": "rss",
+      "url": "https://feeds.reuters.com/reuters/environment"
+    },
+
+    /* ========= ペンギン特化施設 ========= */
+
+    {
+      "name": "長崎ペンギン水族館",
+      "type": "html",
+      "url": "https://penguin-aqua.jp/news"
+    },
+    {
+      "name": "すみだ水族館",
+      "type": "html",
+      "url": "https://www.sumida-aquarium.com/news"
+    },
+    {
+      "name": "サンシャイン水族館",
+      "type": "html",
+      "url": "https://sunshinecity.jp/aquarium/news"
+    },
+    {
+      "name": "名古屋港水族館",
+      "type": "html",
+      "url": "https://nagoyaaqua.jp/news"
+    },
+    {
+      "name": "京都水族館",
+      "type": "html",
+      "url": "https://www.kyoto-aquarium.com/news"
+    },
+    {
+      "name": "海遊館",
+      "type": "html",
+      "url": "https://www.kaiyukan.com/info"
+    },
+    {
+      "name": "横浜・八景島シーパラダイス",
+      "type": "html",
+      "url": "https://www.seaparadise.co.jp/news"
+    },
+    {
+      "name": "マリンワールド海の中道",
+      "type": "html",
+      "url": "https://marine-world.jp/news"
+    },
+    {
+      "name": "沖縄美ら海水族館",
+      "type": "html",
+      "url": "https://churaumi.okinawa/news"
+    },
+    {
+      "name": "仙台うみの杜水族館",
+      "type": "html",
+      "url": "https://www.uminomori.jp/umino/news"
+    },
+    {
+      "name": "男鹿水族館GAO",
+      "type": "html",
+      "url": "https://www.gao-aqua.jp/news"
+    },
+    {
+      "name": "宮島水族館",
+      "type": "html",
+      "url": "https://www.sunameri.jp/news"
+    },
+    {
+      "name": "おたる水族館",
+      "type": "html",
+      "url": "https://otaru-aq.jp/news"
+    },
+    {
+      "name": "鴨川シーワールド",
+      "type": "html",
+      "url": "https://www.kamogawa-seaworld.jp/news"
+    },
+    {
+      "name": "アドベンチャーワールド",
+      "type": "html",
+      "url": "https://www.aws-s.com/news"
+    },
+
+    /* ========= 動物園 ========= */
+
+    {
+      "name": "旭山動物園",
+      "type": "html",
+      "url": "https://www.city.asahikawa.hokkaido.jp/asahiyamazoo/news"
+    },
+    {
+      "name": "上野動物園",
+      "type": "html",
+      "url": "https://www.tokyo-zoo.net/zoo/ueno/news"
+    },
+    {
+      "name": "東山動植物園",
+      "type": "html",
+      "url": "https://www.higashiyama.city.nagoya.jp/news"
+    },
+    {
+      "name": "天王寺動物園",
+      "type": "html",
+      "url": "https://www.tennojizoo.jp/news"
+    }
+  ]
+}
