@@ -2,203 +2,144 @@ import feedparser
 import requests
 import json
 import os
-import tldextract
+import re
 from bs4 import BeautifulSoup
-from deep_translator import GoogleTranslator
-from datetime import datetime, timedelta
+from datetime import datetime
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-
-RSS_FEEDS = [
-    "https://news.google.com/rss/search?q=penguin&hl=en-US&gl=US&ceid=US:en"
-]
-
+KEYWORD = "ペンギン"
 HISTORY_FILE = "history.json"
 
-
-# ==========================
-# JSON処理
-# ==========================
+# =========================
+# 基本ユーティリティ
+# =========================
 
 def load_json(file):
     try:
-        with open(file, "r") as f:
+        with open(file, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
         return []
 
-
 def save_json(file, data):
-    with open(file, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
+def post_to_discord(message):
+    requests.post(DISCORD_WEBHOOK, json={"content": message})
 
-# ==========================
-# URL処理
-# ==========================
-
-def get_domain_name(url):
-    ext = tldextract.extract(url)
-    return f"{ext.domain}.{ext.suffix}"
-
-
-# ★ GoogleニュースRSS対応：実URL抽出
-def resolve_url(entry):
-    # ① descriptionから抽出（最優先）
-    if hasattr(entry, "summary"):
-        soup = BeautifulSoup(entry.summary, "html.parser")
-        link = soup.find("a")
-        if link and link.get("href"):
-            return link.get("href")
-
-    # ② fallback：リダイレクトで取得
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(entry.link, headers=headers, allow_redirects=True, timeout=10)
-        return response.url
-    except:
-        return entry.link
-
-
-# ==========================
+# =========================
 # 本文取得
-# ==========================
+# =========================
 
 def fetch_article_text(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
         r = requests.get(url, headers=headers, timeout=10)
+
         soup = BeautifulSoup(r.text, "html.parser")
+
+        # 不要タグ削除
+        for tag in soup(["script", "style", "header", "footer", "nav", "aside"]):
+            tag.decompose()
 
         paragraphs = soup.find_all("p")
         text = " ".join(p.get_text() for p in paragraphs)
 
-        return text[:3000]
+        text = re.sub(r"\s+", " ", text)
+
+        return text[:4000]
+
     except:
         return ""
 
-
-# ==========================
-# 翻訳＋要約
-# ==========================
-
-def translate_to_japanese(text):
-    try:
-        return GoogleTranslator(source="auto", target="ja").translate(text)
-    except:
-        return text
-
+# =========================
+# 無料ルールベース要約
+# =========================
 
 def summarize_text(text):
+
     if not text:
         return "本文を取得できませんでした。"
 
-    sentences = text.split("。")
-    summary = "。".join(sentences[:3])
+    # 文に分割
+    sentences = re.split("。|\.|\n", text)
+
+    # ペンギン関連文を優先
+    penguin_sentences = [s for s in sentences if KEYWORD in s]
+
+    if penguin_sentences:
+        summary = "。".join(penguin_sentences[:3])
+    else:
+        summary = "。".join(sentences[:3])
+
+    summary = summary.strip()
+
+    if not summary:
+        return "要約を生成できませんでした。"
+
     return summary + "。"
 
+# =========================
+# RSS処理
+# =========================
 
-# ==========================
-# 週まとめ判定（日曜UTC）
-# ==========================
+def process_rss(source, history):
 
-def is_weekly_mode():
-    return datetime.utcnow().weekday() == 6
-
-
-# ==========================
-# 通常投稿
-# ==========================
-
-def normal_mode():
-    history = load_json(HISTORY_FILE)
-    feed = feedparser.parse(RSS_FEEDS[0])
+    feed = feedparser.parse(source["url"])
 
     for entry in feed.entries:
 
-        # 重複防止
         if any(h["url"] == entry.link for h in history):
             continue
 
-        real_url = resolve_url(entry)
-        print("実URL:", real_url)
+        article_text = fetch_article_text(entry.link)
 
-        text = fetch_article_text(real_url)
+        if KEYWORD not in entry.title and KEYWORD not in article_text:
+            continue
 
-        # 本文が短い場合はタイトルを利用（スキップしない）
-        if not text or len(text) < 100:
-            print("本文が短いためタイトルを使用")
-            text = entry.title
+        summary = summarize_text(article_text)
 
-        translated = translate_to_japanese(text)
-        summary = summarize_text(translated)
-
-        domain = get_domain_name(real_url)
-
-        message = f"""📰 【ペンギンニュース】
+        message = f"""📰 【{source['name']}】
 
 ■ タイトル
 {entry.title}
 
-■ ソース
-{domain}
-
 ■ 要約
 {summary}
 
-🔗 {real_url}
+🔗 {entry.link}
 """
 
         if len(message) > 1900:
             message = message[:1900]
 
-        requests.post(DISCORD_WEBHOOK, json={"content": message})
+        post_to_discord(message)
 
         history.append({
             "title": entry.title,
             "url": entry.link,
-            "summary": summary,
             "date": datetime.utcnow().isoformat()
         })
 
         save_json(HISTORY_FILE, history)
 
-        break  # 1回の実行で1記事のみ投稿
+        break  # 1回の実行で1件投稿（安定化のため）
 
+# =========================
+# メイン
+# =========================
 
-# ==========================
-# 週まとめ投稿
-# ==========================
+def main():
 
-def weekly_mode():
     history = load_json(HISTORY_FILE)
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
 
-    weekly_items = [
-        h for h in history
-        if datetime.fromisoformat(h["date"]) > one_week_ago
-    ]
+    with open("sources.json", "r", encoding="utf-8") as f:
+        sources = json.load(f)["sources"]
 
-    if not weekly_items:
-        return
+    for source in sources:
+        if source["type"] == "rss":
+            process_rss(source, history)
 
-    message = "🗓 【ペンギンニュース週間まとめ】\n\n"
-
-    for i, item in enumerate(weekly_items[:5], 1):
-        message += f"{i}. {item['title']}\n"
-        message += f"{item['summary']}\n\n"
-
-    if len(message) > 1900:
-        message = message[:1900]
-
-    requests.post(DISCORD_WEBHOOK, json={"content": message})
-
-
-# ==========================
-# 実行
-# ==========================
-
-if is_weekly_mode():
-    weekly_mode()
-else:
-    normal_mode()
+if __name__ == "__main__":
+    main()
