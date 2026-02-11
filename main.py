@@ -2,105 +2,56 @@ import feedparser
 import requests
 import json
 import os
-import re
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
+from urllib.parse import urljoin
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-KEYWORD = "ペンギン"
+
 HISTORY_FILE = "history.json"
 
-# =========================
-# 基本ユーティリティ
-# =========================
+# ====== 共通 ======
 
-def load_json(file):
+def load_json(path, default):
     try:
-        with open(file, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
-        return []
+        return default
 
-def save_json(file, data):
-    with open(file, "w", encoding="utf-8") as f:
+def save_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def post_to_discord(message):
-    requests.post(DISCORD_WEBHOOK, json={"content": message})
-
-# =========================
-# 本文取得
-# =========================
-
-def fetch_article_text(url):
+def fetch_html(url):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=10)
-
-        soup = BeautifulSoup(r.text, "html.parser")
-
-        # 不要タグ削除
-        for tag in soup(["script", "style", "header", "footer", "nav", "aside"]):
-            tag.decompose()
-
-        paragraphs = soup.find_all("p")
-        text = " ".join(p.get_text() for p in paragraphs)
-
-        text = re.sub(r"\s+", " ", text)
-
-        return text[:4000]
-
+        r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        r.encoding = r.apparent_encoding
+        return r.text
     except:
         return ""
 
-# =========================
-# 無料ルールベース要約
-# =========================
+def summarize(text):
+    text = text.replace("\n", "")
+    sentences = text.split("。")
+    return "。".join(sentences[:3]) + "。"
 
-def summarize_text(text):
+def post_to_discord(message):
+    if len(message) > 1900:
+        message = message[:1900]
+    requests.post(DISCORD_WEBHOOK, json={"content": message})
 
-    if not text:
-        return "本文を取得できませんでした。"
+# ====== RSS処理 ======
 
-    # 文に分割
-    sentences = re.split("。|\.|\n", text)
-
-    # ペンギン関連文を優先
-    penguin_sentences = [s for s in sentences if KEYWORD in s]
-
-    if penguin_sentences:
-        summary = "。".join(penguin_sentences[:3])
-    else:
-        summary = "。".join(sentences[:3])
-
-    summary = summary.strip()
-
-    if not summary:
-        return "要約を生成できませんでした。"
-
-    return summary + "。"
-
-# =========================
-# RSS処理
-# =========================
-
-def process_rss(source, history):
-
-    feed = feedparser.parse(source["url"])
-
-    for entry in feed.entries:
-
+def process_rss(site, history):
+    feed = feedparser.parse(site["rss"])
+    for entry in feed.entries[:5]:
         if any(h["url"] == entry.link for h in history):
             continue
 
-        article_text = fetch_article_text(entry.link)
+        summary = summarize(entry.title + "。")
 
-        if KEYWORD not in entry.title and KEYWORD not in article_text:
-            continue
-
-        summary = summarize_text(article_text)
-
-        message = f"""📰 【{source['name']}】
+        message = f"""📰【{site['name']}】
 
 ■ タイトル
 {entry.title}
@@ -111,9 +62,6 @@ def process_rss(source, history):
 🔗 {entry.link}
 """
 
-        if len(message) > 1900:
-            message = message[:1900]
-
         post_to_discord(message)
 
         history.append({
@@ -122,24 +70,88 @@ def process_rss(source, history):
             "date": datetime.utcnow().isoformat()
         })
 
-        save_json(HISTORY_FILE, history)
+        return history
 
-        break  # 1回の実行で1件投稿（安定化のため）
+    return history
 
-# =========================
-# メイン
-# =========================
+# ====== スクレイピング処理 ======
+
+def process_scrape(site, selectors, history):
+    structure = site["structure"]
+    selector = selectors.get(structure)
+
+    if not selector:
+        return history
+
+    html = fetch_html(site["news_page"])
+    soup = BeautifulSoup(html, "html.parser")
+
+    links = soup.select(selector["article_link_selector"])
+
+    for link in links[:10]:
+        href = link.get("href")
+        if not href:
+            continue
+
+        full_url = urljoin(site["news_page"], href)
+
+        if any(h["url"] == full_url for h in history):
+            continue
+
+        article_html = fetch_html(full_url)
+        article_soup = BeautifulSoup(article_html, "html.parser")
+
+        title_tag = article_soup.select_one(selector["title_selector"])
+        content_tags = article_soup.select(selector["content_selector"])
+
+        if not title_tag or not content_tags:
+            continue
+
+        title = title_tag.get_text(strip=True)
+        content = " ".join(p.get_text(strip=True) for p in content_tags[:5])
+
+        if not any(k in content for k in ["ペンギン", "penguin", "Penguin"]):
+            continue
+
+        summary = summarize(content)
+
+        message = f"""📰【{site['name']}】
+
+■ タイトル
+{title}
+
+■ 要約
+{summary}
+
+🔗 {full_url}
+"""
+
+        post_to_discord(message)
+
+        history.append({
+            "title": title,
+            "url": full_url,
+            "date": datetime.utcnow().isoformat()
+        })
+
+        return history
+
+    return history
+
+# ====== 実行 ======
 
 def main():
+    history = load_json(HISTORY_FILE, [])
+    sources = load_json("sources.json", [])
+    selectors = load_json("selectors.json", {})
 
-    history = load_json(HISTORY_FILE)
+    for site in sources:
+        if "rss" in site and site["rss"]:
+            history = process_rss(site, history)
+        else:
+            history = process_scrape(site, selectors, history)
 
-    with open("sources.json", "r", encoding="utf-8") as f:
-        sources = json.load(f)["sources"]
-
-    for source in sources:
-        if source["type"] == "rss":
-            process_rss(source, history)
+    save_json(HISTORY_FILE, history)
 
 if __name__ == "__main__":
     main()
