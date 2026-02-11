@@ -1,0 +1,34 @@
+name: Penguin News Bot
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"  # 6時間ごと実行
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: python main.py
+
+      - name: Commit history
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@example.com"
+          git add posted.json posted_titles.json
+          git commit -m "update history" || echo "No changes"
+          git push
