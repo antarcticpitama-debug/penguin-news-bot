@@ -1,6 +1,6 @@
 [
-  { "name": "BBC Environment", "url": "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml" },
-  { "name": "Reuters World News", "url": "http://feeds.reuters.com/Reuters/worldNews" },
+  { "name": "BBC Science", "url": "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml" },
+  { "name": "Reuters World", "url": "http://feeds.reuters.com/Reuters/worldNews" },
   { "name": "National Geographic Animals", "url": "https://www.nationalgeographic.com/animals/feed/" },
   { "name": "朝日新聞", "url": "https://www.asahi.com/rss/asahi/newsheadlines.rdf" },
   { "name": "毎日新聞", "url": "https://mainichi.jp/rss/etc/mainichi-flash.rss" },
