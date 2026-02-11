@@ -3,55 +3,96 @@ import requests
 import json
 import os
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urljoin
 
 DISCORD_WEBHOOK = os.environ["DISCORD_WEBHOOK"]
-
 HISTORY_FILE = "history.json"
 
-# ====== 共通 ======
+PENGUIN_KEYWORDS = [
+    "ペンギン",
+    "penguin",
+    "Penguin",
+    "emperor penguin",
+    "adelie",
+    "gentoo",
+    "chinstrap"
+]
 
-def load_json(path, default):
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+
+# =======================
+# 共通処理
+# =======================
+
+def load_history():
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     except:
-        return default
+        return []
 
-def save_json(path, data):
-    with open(path, "w", encoding="utf-8") as f:
+def save_history(data):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def fetch_html(url):
+def fetch_article_text(url):
     try:
-        r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
+        r = requests.get(url, headers=HEADERS, timeout=15)
         r.encoding = r.apparent_encoding
-        return r.text
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        paragraphs = soup.find_all("p")
+        text = " ".join(p.get_text(strip=True) for p in paragraphs)
+
+        return text[:4000]
     except:
         return ""
+
+def contains_penguin(text):
+    text_lower = text.lower()
+    return any(k.lower() in text_lower for k in PENGUIN_KEYWORDS)
 
 def summarize(text):
     text = text.replace("\n", "")
     sentences = text.split("。")
-    return "。".join(sentences[:3]) + "。"
+    if len(sentences) > 3:
+        return "。".join(sentences[:3]) + "。"
+    return text[:300]
 
 def post_to_discord(message):
     if len(message) > 1900:
         message = message[:1900]
-    requests.post(DISCORD_WEBHOOK, json={"content": message})
 
-# ====== RSS処理 ======
+    try:
+        requests.post(DISCORD_WEBHOOK, json={"content": message})
+    except:
+        pass
 
-def process_rss(site, history):
-    feed = feedparser.parse(site["rss"])
+# =======================
+# RSS処理
+# =======================
+
+def process_feed(source, history):
+    feed = feedparser.parse(source["rss"])
+
     for entry in feed.entries[:5]:
-        if any(h["url"] == entry.link for h in history):
+        url = entry.link
+
+        if any(h["url"] == url for h in history):
             continue
 
-        summary = summarize(entry.title + "。")
+        article_text = fetch_article_text(url)
 
-        message = f"""📰【{site['name']}】
+        if not article_text:
+            continue
+
+        if not contains_penguin(article_text):
+            continue
+
+        summary = summarize(article_text)
+
+        message = f"""📰【{source['name']}】
 
 ■ タイトル
 {entry.title}
@@ -59,14 +100,14 @@ def process_rss(site, history):
 ■ 要約
 {summary}
 
-🔗 {entry.link}
+🔗 {url}
 """
 
         post_to_discord(message)
 
         history.append({
             "title": entry.title,
-            "url": entry.link,
+            "url": url,
             "date": datetime.utcnow().isoformat()
         })
 
@@ -74,84 +115,20 @@ def process_rss(site, history):
 
     return history
 
-# ====== スクレイピング処理 ======
-
-def process_scrape(site, selectors, history):
-    structure = site["structure"]
-    selector = selectors.get(structure)
-
-    if not selector:
-        return history
-
-    html = fetch_html(site["news_page"])
-    soup = BeautifulSoup(html, "html.parser")
-
-    links = soup.select(selector["article_link_selector"])
-
-    for link in links[:10]:
-        href = link.get("href")
-        if not href:
-            continue
-
-        full_url = urljoin(site["news_page"], href)
-
-        if any(h["url"] == full_url for h in history):
-            continue
-
-        article_html = fetch_html(full_url)
-        article_soup = BeautifulSoup(article_html, "html.parser")
-
-        title_tag = article_soup.select_one(selector["title_selector"])
-        content_tags = article_soup.select(selector["content_selector"])
-
-        if not title_tag or not content_tags:
-            continue
-
-        title = title_tag.get_text(strip=True)
-        content = " ".join(p.get_text(strip=True) for p in content_tags[:5])
-
-        if not any(k in content for k in ["ペンギン", "penguin", "Penguin"]):
-            continue
-
-        summary = summarize(content)
-
-        message = f"""📰【{site['name']}】
-
-■ タイトル
-{title}
-
-■ 要約
-{summary}
-
-🔗 {full_url}
-"""
-
-        post_to_discord(message)
-
-        history.append({
-            "title": title,
-            "url": full_url,
-            "date": datetime.utcnow().isoformat()
-        })
-
-        return history
-
-    return history
-
-# ====== 実行 ======
+# =======================
+# メイン
+# =======================
 
 def main():
-    history = load_json(HISTORY_FILE, [])
-    sources = load_json("sources.json", [])
-    selectors = load_json("selectors.json", {})
+    history = load_history()
 
-    for site in sources:
-        if "rss" in site and site["rss"]:
-            history = process_rss(site, history)
-        else:
-            history = process_scrape(site, selectors, history)
+    with open("sources.json", "r", encoding="utf-8") as f:
+        sources = json.load(f)
 
-    save_json(HISTORY_FILE, history)
+    for source in sources:
+        history = process_feed(source, history)
+
+    save_history(history)
 
 if __name__ == "__main__":
     main()
