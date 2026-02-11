@@ -2,38 +2,38 @@ name: Penguin News Bot
 
 on:
   schedule:
-  - cron: "0 */6 * * *"   # 通常
-  - cron: "0 12 * * 0"    # 日曜12時UTC（週まとめ）
+    - cron: '0 0 * * *'   # 毎日UTC0時（日本時間9時）
   workflow_dispatch:
 
 permissions:
   contents: write
-
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install feedparser requests beautifulsoup4 deep-translator tldextract
 
-      - name: Run script
+      - name: Run bot
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: python main.py
 
-      - name: Commit history
+      - name: Commit and Push history
         run: |
-          git config user.name "bot"
-          git config user.email "bot@example.com"
-          git add posted.json posted_titles.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions@github.com"
+          git add history.json
           git commit -m "update history" || echo "No changes"
           git push
