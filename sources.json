@@ -1,8 +1,18 @@
 [
   { "name": "BBC Science", "url": "http://feeds.bbci.co.uk/news/science_and_environment/rss.xml" },
+  { "name": "BBC Wildlife", "url": "http://feeds.bbci.co.uk/news/science_and_environment/wildlife/rss.xml" },
   { "name": "Reuters World", "url": "http://feeds.reuters.com/Reuters/worldNews" },
   { "name": "National Geographic Animals", "url": "https://www.nationalgeographic.com/animals/feed/" },
+  { "name": "Smithsonian Magazine Animals", "url": "https://www.smithsonianmag.com/rss/science-nature/" },
   { "name": "朝日新聞", "url": "https://www.asahi.com/rss/asahi/newsheadlines.rdf" },
   { "name": "毎日新聞", "url": "https://mainichi.jp/rss/etc/mainichi-flash.rss" },
-  { "name": "NHKニュース", "url": "https://www3.nhk.or.jp/rss/news/cat0.xml" }
+  { "name": "NHKニュース", "url": "https://www3.nhk.or.jp/rss/news/cat0.xml" },
+  { "name": "日経新聞 Science", "url": "https://www.nikkei.com/rss/nikkei-eco/"} ,
+  { "name": "AFP BB News Science", "url": "https://www.afpbb.com/rss/topics/science.xml" },
+  { "name": "PENGUIN ZOO NEWS (San Diego Zoo)", "url": "https://www.sandiegozoo.org/rss/news.xml" },
+  { "name": "Shedd Aquarium News", "url": "https://www.sheddaquarium.org/rss/news.xml" },
+  { "name": "旭山動物園ニュース", "url": "https://www.city.asahikawa.hokkaido.jp/asahiyamazoo/0000000006.html" },
+  { "name": "京都水族館ニュース", "url": "https://www.kyoto-aquarium.com/news/rss.xml" },
+  { "name": "名古屋港水族館ニュース", "url": "https://www.nagoyaaqua.jp/news/rss.xml" },
+  { "name": "鴨川シーワールドニュース", "url": "https://www.kamogawa-seaworld.jp/news/rss.xml" }
 ]
