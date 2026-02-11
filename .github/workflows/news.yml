@@ -6,6 +6,10 @@ on:
   - cron: "0 12 * * 0"    # 日曜12時UTC（週まとめ）
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+
 jobs:
   run:
     runs-on: ubuntu-latest
