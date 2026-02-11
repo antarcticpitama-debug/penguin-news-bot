@@ -2,8 +2,8 @@ name: Penguin News Bot
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # 6時間ごと
-  workflow_dispatch:        # 手動実行も可能
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
