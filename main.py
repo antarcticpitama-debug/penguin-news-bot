@@ -15,7 +15,11 @@ RSS_FEEDS = [
 
 HISTORY_FILE = "history.json"
 
-# ===== ユーティリティ =====
+
+# ==========================
+# JSON読み書き
+# ==========================
+
 def load_json(file):
     try:
         with open(file, "r") as f:
@@ -23,23 +27,34 @@ def load_json(file):
     except:
         return []
 
+
 def save_json(file, data):
     with open(file, "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
+
+
+# ==========================
+# URL処理
+# ==========================
 
 def get_domain_name(url):
     ext = tldextract.extract(url)
     return f"{ext.domain}.{ext.suffix}"
 
-# ★ GoogleニュースURLを実URLへ変換
+
 def resolve_url(google_url):
     try:
-        response = requests.get(google_url, allow_redirects=True, timeout=10)
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = requests.get(google_url, headers=headers, allow_redirects=True, timeout=10)
         return response.url
     except:
         return google_url
 
-# ★ 本文取得（改良版）
+
+# ==========================
+# 本文取得
+# ==========================
+
 def fetch_article_text(url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -53,7 +68,11 @@ def fetch_article_text(url):
     except:
         return ""
 
-# ★ 翻訳
+
+# ==========================
+# 翻訳＋要約
+# ==========================
+
 def translate_to_japanese(text):
     if len(text) < 200:
         return ""
@@ -62,45 +81,49 @@ def translate_to_japanese(text):
     except:
         return text
 
-# ★ 要約（少し改良）
+
 def summarize_text(text):
     if not text:
         return "本文を取得できませんでした。"
 
     sentences = text.split("。")
     summary = "。".join(sentences[:3])
-
     return summary + "。"
 
-# ===== 週まとめ判定 =====
-def is_weekly_mode():
-    return datetime.utcnow().weekday() == 6  # 日曜
 
-# ===== 通常投稿処理 =====
+# ==========================
+# 週まとめ判定（日曜のみ）
+# ==========================
+
+def is_weekly_mode():
+    return datetime.utcnow().weekday() == 6
+
+
+# ==========================
+# 通常投稿
+# ==========================
+
 def normal_mode():
     history = load_json(HISTORY_FILE)
     feed = feedparser.parse(RSS_FEEDS[0])
 
     for entry in feed.entries:
 
-        # 重複防止
+        # 重複チェック
         if any(h["url"] == entry.link for h in history):
             continue
 
-        # ★ 実URLへ変換
         real_url = resolve_url(entry.link)
-
         print("実URL:", real_url)
 
         text = fetch_article_text(real_url)
 
         if len(text) < 300:
-            print("本文が短すぎるためスキップ")
+            print("本文が短いためスキップ")
             continue
 
         translated = translate_to_japanese(text)
         summary = summarize_text(translated)
-
         domain = get_domain_name(real_url)
 
         message = f"""📰 【ペンギンニュース】
@@ -130,9 +153,14 @@ def normal_mode():
         })
 
         save_json(HISTORY_FILE, history)
-        break
 
-# ===== 週まとめ投稿 =====
+        break  # 1回の実行で1記事投稿
+
+
+# ==========================
+# 週まとめ投稿
+# ==========================
+
 def weekly_mode():
     history = load_json(HISTORY_FILE)
     one_week_ago = datetime.utcnow() - timedelta(days=7)
@@ -156,7 +184,11 @@ def weekly_mode():
 
     requests.post(DISCORD_WEBHOOK, json={"content": message})
 
-# ===== 実行 =====
+
+# ==========================
+# 実行
+# ==========================
+
 if is_weekly_mode():
     weekly_mode()
 else:
