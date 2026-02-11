@@ -17,7 +17,7 @@ HISTORY_FILE = "history.json"
 
 
 # ==========================
-# JSON読み書き
+# JSON処理
 # ==========================
 
 def load_json(file):
@@ -42,13 +42,22 @@ def get_domain_name(url):
     return f"{ext.domain}.{ext.suffix}"
 
 
-def resolve_url(google_url):
+# ★ GoogleニュースRSS対応：実URL抽出
+def resolve_url(entry):
+    # ① descriptionから抽出（最優先）
+    if hasattr(entry, "summary"):
+        soup = BeautifulSoup(entry.summary, "html.parser")
+        link = soup.find("a")
+        if link and link.get("href"):
+            return link.get("href")
+
+    # ② fallback：リダイレクトで取得
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(google_url, headers=headers, allow_redirects=True, timeout=10)
+        response = requests.get(entry.link, headers=headers, allow_redirects=True, timeout=10)
         return response.url
     except:
-        return google_url
+        return entry.link
 
 
 # ==========================
@@ -74,8 +83,6 @@ def fetch_article_text(url):
 # ==========================
 
 def translate_to_japanese(text):
-    if len(text) < 200:
-        return ""
     try:
         return GoogleTranslator(source="auto", target="ja").translate(text)
     except:
@@ -92,7 +99,7 @@ def summarize_text(text):
 
 
 # ==========================
-# 週まとめ判定（日曜のみ）
+# 週まとめ判定（日曜UTC）
 # ==========================
 
 def is_weekly_mode():
@@ -109,21 +116,23 @@ def normal_mode():
 
     for entry in feed.entries:
 
-        # 重複チェック
+        # 重複防止
         if any(h["url"] == entry.link for h in history):
             continue
 
-        real_url = resolve_url(entry.link)
+        real_url = resolve_url(entry)
         print("実URL:", real_url)
 
         text = fetch_article_text(real_url)
 
-        if len(text) < 300:
-            print("本文が短いためスキップ")
-            continue
+        # 本文が短い場合はタイトルを利用（スキップしない）
+        if not text or len(text) < 100:
+            print("本文が短いためタイトルを使用")
+            text = entry.title
 
         translated = translate_to_japanese(text)
         summary = summarize_text(translated)
+
         domain = get_domain_name(real_url)
 
         message = f"""📰 【ペンギンニュース】
@@ -154,7 +163,7 @@ def normal_mode():
 
         save_json(HISTORY_FILE, history)
 
-        break  # 1回の実行で1記事投稿
+        break  # 1回の実行で1記事のみ投稿
 
 
 # ==========================
