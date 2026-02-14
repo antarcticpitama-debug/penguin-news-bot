@@ -119,8 +119,6 @@ def main():
         feed = feedparser.parse(source["url"])
         print("entries:", len(feed.entries))
         
-        print("TEXT LENGTH:", len(article_text))
-        print("------")
         
         for entry in feed.entries:
             link = entry.get("link")
@@ -134,6 +132,10 @@ def main():
 
             # 本文を取得する
             article_text = fetch_article_text(link)
+
+            print("TEXT LENGTH:", len(article_text))
+            print("------")
+            
             if not article_text:
                 continue
 
