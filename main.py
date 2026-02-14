@@ -118,15 +118,17 @@ def main():
         print("Checking:", source["name"])
         feed = feedparser.parse(source["url"])
         print("entries:", len(feed.entries))
-        print("TITLE:", title)
-        print("LINK:", link)
+        
         print("TEXT LENGTH:", len(article_text))
         print("------")
         
         for entry in feed.entries:
             link = entry.get("link")
             title = entry.get("title", "")
+            print("TITLE:", title)
+            print("LINK:", link)
 
+            
             if not link or link in posted_urls:
                 continue
 
