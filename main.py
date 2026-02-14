@@ -134,74 +134,71 @@ def main():
         print("Checking:", source["name"])
         feed = feedparser.parse(source["url"])
         print("entries:", len(feed.entries))
-        
-        
-for entry in feed.entries:
-    link = entry.get("link")
-    title = entry.get("title", "")
 
-    if not link or link in posted_urls:
-        continue
+        for entry in feed.entries:
+            link = entry.get("link")
+            title = entry.get("title", "")
 
-    # --------------------------
-    # ★ Googleニュース専用処理
-    # --------------------------
-    if "news.google.com" in link:
-        print("GoogleNews detected")
+            if not link or link in posted_urls:
+                continue
 
-        # タイトルでペンギン判定だけする
-        if not contains_penguin(title):
-            continue
+            # --------------------------
+            # ★ Googleニュース専用
+            # --------------------------
+            if "news.google.com" in link:
+                print("GoogleNews detected")
 
-        summary = "Googleニュースのため要約はありません"
+                if not contains_penguin(title):
+                    continue
 
-        post_to_discord(title, summary, link)
+                summary = "Googleニュースのため要約はありません"
 
-        history.append({
-            "title": title,
-            "url": link,
-            "date": datetime.utcnow().isoformat()
-        })
-        save_history(history)
+                post_to_discord(title, summary, link)
 
-        post_count += 1
-        if post_count >= MAX_POSTS:
-            print("Max posts reached")
-            return
+                history.append({
+                    "title": title,
+                    "url": link,
+                    "date": datetime.utcnow().isoformat()
+                })
+                save_history(history)
 
-        continue   # ←重要：本文取得しない
+                post_count += 1
+                if post_count >= MAX_POSTS:
+                    print("Max posts reached")
+                    return
 
-    # --------------------------
-    # 通常ニュース（本文取得あり）
-    # --------------------------
-    article_text = fetch_article_text(link)
+                continue  # 本文取得しない
 
-    print("TEXT LENGTH:", len(article_text))
-    print("------")
+            # --------------------------
+            # 通常記事
+            # --------------------------
+            article_text = fetch_article_text(link)
 
-    if not article_text:
-        continue
+            print("TEXT LENGTH:", len(article_text))
+            print("------")
 
-    if not contains_penguin(title + article_text):
-        continue
+            if not article_text:
+                continue
 
-    translated = translate_to_japanese(article_text)
-    summary = summarize_text(translated)
+            if not contains_penguin(title + article_text):
+                continue
 
-    post_to_discord(title, summary, link)
+            translated = translate_to_japanese(article_text)
+            summary = summarize_text(translated)
 
-    history.append({
-        "title": title,
-        "url": link,
-        "date": datetime.utcnow().isoformat()
-    })
-    save_history(history)
+            post_to_discord(title, summary, link)
 
-    post_count += 1
-    if post_count >= MAX_POSTS:
-        print("Max posts reached")
-        return
+            history.append({
+                "title": title,
+                "url": link,
+                "date": datetime.utcnow().isoformat()
+            })
+            save_history(history)
 
+            post_count += 1
+            if post_count >= MAX_POSTS:
+                print("Max posts reached")
+                return
 
 if __name__ == "__main__":
     main()
