@@ -12,7 +12,7 @@ DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
 MAX_POSTS = 5
 HISTORY_FILE = "history.json"
 
-KEYWORDS = ["penguin", "ペンギン"]
+KEYWORDS = ["penguin", "ペンギン","南極","Antarctica"]
 
 # ----------------------------
 # Utility
