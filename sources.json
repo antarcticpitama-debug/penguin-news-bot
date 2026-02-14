@@ -20,4 +20,24 @@
   { "name": "毎日新聞", "url": "https://mainichi.jp/rss/etc/mainichi-flash.rss" },
   { "name": "NHKニュース", "url": "https://www3.nhk.or.jp/rss/news/cat0.xml" },
   { "name": "日経新聞 Science", "url": "https://www.nikkei.com/rss/nikkei-eco/" }
+  { "name": "鳥羽水族館", "url": "https://www.aquarium.co.jp/feed/" },
+  { "name": "アドベンチャーワールド（和歌山）", "url": "https://www.aws-s.com/news/feed/" },
+  { "name": "葛西臨海水族園", "url": "https://www.tokyo-zoo.net/topic/topics_all.xml" },
+  { "name": "上野動物園", "url": "https://www.tokyo-zoo.net/topic/topics_all.xml" },
+  { "name": "横浜・八景島シーパラダイス（公式ブログ）", "url": "https://www.seaparadise.co.jp/blog/feed/" },
+  { "name": "神戸どうぶつ王国", "url": "https://www.kobe-oukoku.com/feed/" },
+
+  { "name": "Monterey Bay Aquarium (USA)", "url": "https://www.montereybayaquarium.org/stories/feed" },
+  { "name": "Bronx Zoo (USA)", "url": "https://bronxzoo.com/blog/rss.xml" },
+  { "name": "Taronga Zoo (Australia)", "url": "https://taronga.org.au/news/rss.xml" },
+  { "name": "Edinburgh Zoo (UK)", "url": "https://www.edinburghzoo.org.uk/news/rss" },
+
+  { "name": "国立極地研究所", "url": "https://www.nipr.ac.jp/info/rss.xml" },
+  { "name": "海洋研究開発機構（JAMSTEC）", "url": "https://www.jamstec.go.jp/j/about/press_release/rss.xml" },
+  { "name": "国立環境研究所", "url": "https://www.nies.go.jp/whatsnew/rss.xml" },
+  { "name": "British Antarctic Survey", "url": "https://www.bas.ac.uk/feed/" },
+  { "name": "Australian Antarctic Division", "url": "https://www.antarctica.gov.au/feed/" },
+  { "name": "NOAA Fisheries", "url": "https://www.fisheries.noaa.gov/rss.xml" }
+
+
 ]
