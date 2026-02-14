@@ -19,7 +19,7 @@
   { "name": "朝日新聞", "url": "https://www.asahi.com/rss/asahi/newsheadlines.rdf" },
   { "name": "毎日新聞", "url": "https://mainichi.jp/rss/etc/mainichi-flash.rss" },
   { "name": "NHKニュース", "url": "https://www3.nhk.or.jp/rss/news/cat0.xml" },
-  { "name": "日経新聞 Science", "url": "https://www.nikkei.com/rss/nikkei-eco/" }
+  { "name": "日経新聞 Science", "url": "https://www.nikkei.com/rss/nikkei-eco/" },
   { "name": "鳥羽水族館", "url": "https://www.aquarium.co.jp/feed/" },
   { "name": "アドベンチャーワールド（和歌山）", "url": "https://www.aws-s.com/news/feed/" },
   { "name": "葛西臨海水族園", "url": "https://www.tokyo-zoo.net/topic/topics_all.xml" },
