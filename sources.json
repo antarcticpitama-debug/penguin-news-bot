@@ -36,7 +36,5 @@
   { "name": "British Antarctic Survey", "url": "https://www.bas.ac.uk/feed/" },
   { "name": "Australian Antarctic Division", "url": "https://www.antarctica.gov.au/feed/" },
   { "name": "NOAA Fisheries", "url": "https://www.fisheries.noaa.gov/rss.xml" },
-  { "name": "GoogleNews Penguin EN", "url": "https://news.google.com/rss/search?q=penguin&hl=en-US&gl=US&ceid=US:en" },
-{ "name": "GoogleNews ペンギンJP", "url": "https://news.google.com/rss/search?q=ペンギン&hl=ja&gl=JP&ceid=JP:ja" },
-{ "name": "GoogleNews Antarctica", "url": "https://news.google.com/rss/search?q=Antarctica&hl=en-US&gl=US&ceid=US:en" }
+{ "name": "GoogleNews ペンギンJP", "url": "https://news.google.com/rss/search?q=ペンギン&hl=ja&gl=JP&ceid=JP:ja" }
 ]
