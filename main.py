@@ -146,12 +146,11 @@ def main():
             # GoogleNewsなら実URL取得
             if "news.google.com" in link:
                 try:
-                    real = entry.links[-1]["href"]   # ←これが本物URL
+                    real = entry.links[0]["href"]
                     print("REAL:", real)
                     link = real
-                except Exception as e:
-                    print("real url error", e)
-                    continue
+                except:
+                    pass
       
             
             # 本文を取得する
