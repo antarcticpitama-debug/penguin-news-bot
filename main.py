@@ -143,14 +143,11 @@ def main():
             if not link or link in posted_urls:
                 continue
 
-            # GoogleNewsなら実URL取得
+            # ★GoogleNewsなら実URL取得
             if "news.google.com" in link:
-                try:
-                    real = entry.links[0]["href"]
-                    print("REAL:", real)
-                    link = real
-                except:
-                    pass
+                real = extract_real_url(link)
+                print("REAL:", real)
+                link = real
       
             
             # 本文を取得する
