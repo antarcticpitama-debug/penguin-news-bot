@@ -21,14 +21,21 @@ def summarize_title(title):
     if not title:
         return ""
 
-    # 日本語化
     jp = translate_to_japanese(title)
 
-    # 長すぎる場合だけ短縮
-    if len(jp) > 120:
-        jp = jp[:120] + "..."
+    # 不要な媒体名を削除
+    # 例: ～ - BBC News
+    if " - " in jp:
+        jp = jp.split(" - ")[0]
 
+    # 日本語1行ニュース化
+    # 長いときだけ短縮
+    if len(jp) > 80:
+        jp = jp[:80] + "..."
+
+    # ニュースっぽく整形
     return jp
+
 
 def extract_real_url(google_url):
     try:
