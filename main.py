@@ -117,7 +117,8 @@ def main():
     for source in sources:
         print("Checking:", source["name"])
         feed = feedparser.parse(source["url"])
-
+        print("entries:", len(feed.entries))
+        
         for entry in feed.entries:
             link = entry.get("link")
             title = entry.get("title", "")
