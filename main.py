@@ -17,6 +17,22 @@ KEYWORDS = ["penguin", "ペンギン","南極","Antarctica"]
 # ----------------------------
 # Utility
 # ----------------------------
+def extract_real_url(google_url):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(google_url, timeout=10, headers=headers)
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # GoogleNewsの実URLはここにある
+        for a in soup.find_all("a"):
+            href = a.get("href", "")
+            if href.startswith("http") and "google.com" not in href:
+                return href
+    except Exception as e:
+        print("extract error:", e)
+
+    return google_url
+
 
 def load_history():
     try:
@@ -123,13 +139,17 @@ def main():
         for entry in feed.entries:
             link = entry.get("link")
             title = entry.get("title", "")
-            print("TITLE:", title)
-            print("LINK:", link)
-
             
             if not link or link in posted_urls:
                 continue
 
+            # ★GoogleNewsなら実URL取得
+            if "news.google.com" in link:
+                real = extract_real_url(link)
+                print("REAL:", real)
+                link = real
+      
+            
             # 本文を取得する
             article_text = fetch_article_text(link)
 
