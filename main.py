@@ -17,6 +17,19 @@ KEYWORDS = ["penguin", "ペンギン","南極","Antarctica"]
 # ----------------------------
 # Utility
 # ----------------------------
+def summarize_title(title):
+    if not title:
+        return ""
+
+    # 日本語化
+    jp = translate_to_japanese(title)
+
+    # 長すぎる場合だけ短縮
+    if len(jp) > 120:
+        jp = jp[:120] + "..."
+
+    return jp
+
 def extract_real_url(google_url):
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -150,8 +163,8 @@ def main():
 
                 if not contains_penguin(title):
                     continue
-
-                summary = "Googleニュースのため要約はありません"
+                summary = summarize_title(title)
+                # summary = "Googleニュースのため要約はありません"
 
                 post_to_discord(title, summary, link)
 
