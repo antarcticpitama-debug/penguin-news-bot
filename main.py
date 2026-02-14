@@ -126,9 +126,13 @@ def main():
             if not link or link in posted_urls:
                 continue
 
-            # タイトル or 概要にペンギンが含まれるか
-            summary_text = entry.get("summary", "")
-            if not contains_penguin(title + summary_text):
+            # 本文を取得する
+            article_text = fetch_article_text(link)
+            if not article_text:
+                continue
+
+            # 本文で判定する
+            if not contains_penguin(title + article_text):
                 continue
 
             article_text = fetch_article_text(link)
