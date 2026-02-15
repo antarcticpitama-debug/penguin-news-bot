@@ -2,6 +2,7 @@ import feedparser
 import requests
 import json
 import os
+import google.generativeai as genai
 from bs4 import BeautifulSoup
 from readability import Document
 from datetime import datetime
@@ -10,6 +11,10 @@ from deep_translator import GoogleTranslator
 
 DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
 DISCORD_GOOGLENEWS_WEBHOOK = os.getenv("DISCORD_GOOGLENEWS_WEBHOOK")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 MAX_POSTS_GOOGLE = 5
 MAX_POSTS_NORMAL = 5
@@ -20,6 +25,52 @@ KEYWORDS = ["penguin", "ペンギン","南極","Antarctica"]
 # ----------------------------
 # Utility
 # ----------------------------
+def judge_penguin_news(title):
+    """
+    戻り値:
+    "S" = 超重要
+    "A" = 普通のペンギンニュース
+    "N" = 関係なし
+    """
+
+    if not GEMINI_API_KEY:
+        return "A"
+
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        prompt = f"""
+次のニュースタイトルを判定してください。
+
+S：世界的に重要なペンギンニュース
+（南極研究・大量死・新発見・保護・気候変動など）
+
+A：普通のペンギンニュース
+（水族館・動物園・赤ちゃん誕生など）
+
+N：ペンギン無関係
+
+タイトル:
+{title}
+
+S / A / N のどれか1文字だけ答えて
+"""
+
+        res = model.generate_content(prompt)
+        ans = res.text.strip().upper()
+
+        print("AI判定:", ans)
+
+        if "S" in ans:
+            return "S"
+        if "A" in ans:
+            return "A"
+        return "N"
+
+    except Exception as e:
+        print("Gemini error:", e)
+        return "A"
+
 def summarize_title(title):
     if not title:
         return ""
@@ -173,19 +224,24 @@ def main():
             if "news.google.com" in link:
                 print("GoogleNews detected")
             
-                if not contains_penguin(title):
+                result = judge_penguin_news(title)
+            
+                if result == "N":
                     continue
             
-                # タイトルを日本語化
+                # タイトル日本語化
                 jp_title = translate_to_japanese(title)
             
-                summary = "Googleニュースのため要約はありません"
+                # 要約文
+                if result == "S":
+                    summary = "🌍重要なペンギンニュース"
+                else:
+                    summary = "Googleニュースのため要約はありません"
             
-                # ★Google用Webhookへ
                 post_to_discord(jp_title, summary, link, DISCORD_GOOGLENEWS_WEBHOOK)
             
                 history.append({
-                    "title": jp_title,
+                    "title": title,
                     "url": link,
                     "date": datetime.utcnow().isoformat()
                 })
@@ -193,11 +249,9 @@ def main():
             
                 google_count += 1
                 if google_count >= MAX_POSTS_GOOGLE:
-                    print("Google max reached")
                     break
             
                 continue
-
             # --------------------------
             # 通常記事
             # --------------------------
