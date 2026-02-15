@@ -176,13 +176,16 @@ def main():
                 if not contains_penguin(title):
                     continue
             
-                summary = summarize_title(title)
+                # タイトルを日本語化
+                jp_title = translate_to_japanese(title)
             
-                # ★Google用Webhook
-                post_to_discord(title, summary, link, DISCORD_GOOGLENEWS_WEBHOOK)
+                summary = "Googleニュースのため要約はありません"
+            
+                # ★Google用Webhookへ
+                post_to_discord(jp_title, summary, link, DISCORD_GOOGLENEWS_WEBHOOK)
             
                 history.append({
-                    "title": title,
+                    "title": jp_title,
                     "url": link,
                     "date": datetime.utcnow().isoformat()
                 })
@@ -191,8 +194,7 @@ def main():
                 google_count += 1
                 if google_count >= MAX_POSTS_GOOGLE:
                     print("Google max reached")
-                    break   # ← returnじゃなくbreakが重要
-            
+                    break
             
                 continue
 
