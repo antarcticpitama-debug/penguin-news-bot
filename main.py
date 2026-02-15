@@ -9,7 +9,10 @@ from langdetect import detect
 from deep_translator import GoogleTranslator
 
 DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
-MAX_POSTS = 5
+DISCORD_GOOGLENEWS_WEBHOOK = os.getenv("DISCORD_GOOGLENEWS_WEBHOOK")
+
+MAX_POSTS_GOOGLE = 5
+MAX_POSTS_NORMAL = 5
 HISTORY_FILE = "history.json"
 
 KEYWORDS = ["penguin", "ペンギン","南極","Antarctica"]
@@ -117,7 +120,7 @@ def summarize_text(text):
 # Discord post
 # ----------------------------
 
-def post_to_discord(title, summary, url):
+def post_to_discord(title, summary, url, webhook):
     message = f"""📰 **ペンギンニュース**
 
 **タイトル**
@@ -131,7 +134,7 @@ def post_to_discord(title, summary, url):
     if len(message) > 1900:
         message = message[:1900]
 
-    requests.post(DISCORD_WEBHOOK, json={"content": message})
+    requests.post(webhook, json={"content": message})
 
 # ----------------------------
 # Main
@@ -148,7 +151,9 @@ def main():
     with open("sources.json", "r", encoding="utf-8") as f:
         sources = json.load(f)
 
-    post_count = 0
+    google_count = 0
+    normal_count = 0
+
 
     for source in sources:
         print("Checking:", source["name"])
@@ -167,27 +172,29 @@ def main():
             # --------------------------
             if "news.google.com" in link:
                 print("GoogleNews detected")
-
+            
                 if not contains_penguin(title):
                     continue
+            
                 summary = summarize_title(title)
-                # summary = "Googleニュースのため要約はありません"
-
-                post_to_discord(title, summary, link)
-
+            
+                # ★Google用Webhook
+                post_to_discord(title, summary, link, DISCORD_GOOGLENEWS_WEBHOOK)
+            
                 history.append({
                     "title": title,
                     "url": link,
                     "date": datetime.utcnow().isoformat()
                 })
                 save_history(history)
-
-                post_count += 1
-                if post_count >= MAX_POSTS:
-                    print("Max posts reached")
-                    return
-
-                continue  # 本文取得しない
+            
+                google_count += 1
+                if google_count >= MAX_POSTS_GOOGLE:
+                    print("Google max reached")
+                    break   # ← returnじゃなくbreakが重要
+            
+            
+                continue
 
             # --------------------------
             # 通常記事
@@ -206,7 +213,7 @@ def main():
             translated = translate_to_japanese(article_text)
             summary = summarize_text(translated)
 
-            post_to_discord(title, summary, link)
+            post_to_discord(title, summary, link, DISCORD_WEBHOOK)
 
             history.append({
                 "title": title,
@@ -215,10 +222,11 @@ def main():
             })
             save_history(history)
 
-            post_count += 1
-            if post_count >= MAX_POSTS:
-                print("Max posts reached")
-                return
+            normal_count += 1
+            if normal_count >= MAX_POSTS_NORMAL:
+                print("Normal max reached")
+                break
+
 
 if __name__ == "__main__":
     main()
